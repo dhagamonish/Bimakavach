@@ -401,7 +401,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen h-dvh w-full bg-slate-100 flex flex-col md:flex-row selection:bg-blue-600 selection:text-white font-sans text-slate-800 overflow-hidden">
+    <div className="h-screen h-svh w-full bg-slate-100 flex flex-col md:flex-row selection:bg-blue-600 selection:text-white font-sans text-slate-800 overflow-hidden">
       
       {/* Dynamic Toast Element */}
       <AnimatePresence>
