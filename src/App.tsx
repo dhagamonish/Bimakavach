@@ -401,7 +401,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-full bg-slate-100 flex flex-col md:flex-row selection:bg-blue-600 selection:text-white font-sans text-slate-800 overflow-hidden">
+    <div className="h-screen h-dvh w-full bg-slate-100 flex flex-col md:flex-row selection:bg-blue-600 selection:text-white font-sans text-slate-800 overflow-hidden">
       
       {/* Dynamic Toast Element */}
       <AnimatePresence>
@@ -1929,7 +1929,7 @@ export default function App() {
         {/* ────────────────────────────────────────────────────────────────────── */}
         {/* TAB BAR SYSTEM (FITTS LAW: height >= 56px) */}
         {/* ────────────────────────────────────────────────────────────────────── */}
-        <div className="h-16 shrink-0 bg-white border-t border-slate-200/95 flex md:hidden justify-around items-center px-4 relative z-40 select-none">
+        <div className="h-[calc(4rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] shrink-0 bg-white border-t border-slate-200/95 flex md:hidden justify-around items-center px-4 relative z-40 select-none">
           <button 
             onClick={() => {
               setCurrentTab('Home');
