@@ -252,8 +252,156 @@ export default function App() {
     return d.stage === pipelineFilter;
   });
 
+  // Reusable responsive Deal Card component
+  const DealCard = ({ deal, onClick }: { deal: Deal; onClick: () => void }) => {
+    const getStageBadge = (stage: Deal['stage']) => {
+      switch(stage) {
+        case 'New Lead': return { bg: 'bg-indigo-50 border-indigo-100 text-indigo-700', bullet: '#6366F1' };
+        case 'Discovery': return { bg: 'bg-teal-50 border-teal-100 text-teal-700', bullet: '#0D9488' };
+        case 'Quote Shared': return { bg: 'bg-amber-50 border-amber-100 text-amber-600', bullet: '#F59E0B' };
+        case 'Negotiation': return { bg: 'bg-purple-50 border-purple-100 text-purple-700', bullet: '#8B5CF6' };
+        case 'Closed': return { bg: 'bg-emerald-50 border-emerald-100 text-emerald-700', bullet: '#10B981' };
+      }
+    };
+    const badgeStyle = getStageBadge(deal.stage);
+    const isIdle = deal.idle > 2;
+
+    return (
+      <motion.div
+        whileTap={{ scale: 0.98 }}
+        onClick={onClick}
+        className="bg-white rounded-xl overflow-hidden shadow-xs border border-slate-200/80 hover:border-blue-300 hover:shadow-md cursor-pointer p-3.5 transition-all text-left"
+      >
+        <div className="flex justify-between items-start">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div 
+              className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[11px] text-slate-700 shrink-0"
+              style={{ backgroundColor: deal.color + '20' }}
+            >
+              {deal.initials}
+            </div>
+            <div className="min-w-0">
+              <h4 className="text-[13px] font-bold text-slate-900 leading-tight truncate">{deal.company}</h4>
+              <p className="text-[10.5px] text-slate-500 mt-0.5 truncate">{deal.products.join(' + ')} · {deal.contact}</p>
+            </div>
+          </div>
+          <div className="text-right shrink-0 ml-2">
+            <p className="text-[12px] font-bold text-[#0F2044] leading-tight">{deal.value}</p>
+            <p className={`text-[9.5px] mt-0.5 font-semibold ${isIdle ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+              {deal.idle === 0 ? 'Today' : `${deal.idle}d idle`}
+            </p>
+          </div>
+        </div>
+
+        {/* Deal specific custom tags */}
+        <div className="flex flex-wrap gap-1.5 mt-3 select-none">
+          <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${badgeStyle.bg} font-medium`}>
+            {deal.stage}
+          </span>
+
+          {deal.id === 1 && (
+            <>
+              {isIdle && (
+                <span className="bg-red-50 text-red-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-red-100 flex items-center gap-1">
+                  <AlertTriangle className="w-2.5 h-2.5 text-red-500" />
+                  Idle
+                </span>
+              )}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowUpsellModal(true);
+                }}
+                className="bg-[#0F2044]/5 hover:bg-[#0F2044]/10 text-[#0F2044] text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-slate-200/70 flex items-center gap-1 animate-pulse"
+              >
+                Cyber upsell ↗
+              </button>
+            </>
+          )}
+
+          {deal.id === 2 && (
+            <>
+              {deal.autoLogged && (
+                <span className="bg-teal-50 text-teal-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-teal-100">
+                  ✦ Auto-logged
+                </span>
+              )}
+              <span className="bg-orange-50 text-orange-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-orange-100">
+                Warm
+              </span>
+            </>
+          )}
+
+          {deal.id === 4 && (
+            <span className="bg-[#1A56A4]/10 text-[#1A56A4] text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-blue-100">
+              Discovery done AUTO
+            </span>
+          )}
+
+          {deal.id === 5 && (
+            <span className="bg-indigo-50 text-indigo-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-indigo-100">
+              ✦ Auto-created from WhatsApp
+            </span>
+          )}
+        </div>
+
+        {deal.id === 3 && (
+          <div className="mt-3">
+            <div className="flex justify-between text-[9px] text-slate-400 font-medium mb-1">
+              <span>82% likely to close</span>
+              <span>3 days in negotiation</span>
+            </div>
+            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: 0 }}
+                animate={{ width: '82%' }}
+                transition={{ duration: 0.6 }}
+                className="bg-purple-600 h-full"
+              />
+            </div>
+          </div>
+        )}
+      </motion.div>
+    );
+  };
+
+  // Helper to render stage columns dynamically
+  const renderStageColumn = (stageName: Deal['stage'], colorClass: string, icon: string) => {
+    const stageDeals = filteredDeals.filter(d => d.stage === stageName);
+    const totalValue = stageDeals.reduce((sum, d) => {
+      const val = parseFloat(d.value.replace(/[^0-9.]/g, '')) || 0;
+      return sum + val;
+    }, 0).toFixed(1);
+
+    return (
+      <div className="flex flex-col shrink-0 w-full md:w-72 bg-slate-100/50 md:bg-slate-50 border border-slate-200/60 rounded-xl p-3 md:h-full md:max-h-[calc(100vh-140px)] overflow-y-auto no-scrollbar">
+        <div className="flex justify-between items-center mb-3 select-none">
+          <span className={`text-[10px] font-bold tracking-wider uppercase ${colorClass}`}>
+            {icon} {stageName} ({stageDeals.length})
+          </span>
+          <span className="text-[10.5px] font-bold text-slate-500 font-mono">₹{totalValue}L</span>
+        </div>
+        <div className="space-y-3">
+          {stageDeals.length === 0 ? (
+            <div className="text-center py-8 text-xs text-slate-400 border border-dashed border-slate-200 rounded-lg">
+              No deals in this stage
+            </div>
+          ) : (
+            stageDeals.map(deal => (
+              <DealCard 
+                key={deal.id} 
+                deal={deal} 
+                onClick={() => handleDealSelection(deal.id)} 
+              />
+            ))
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 selection:bg-blue-600 selection:text-white">
+    <div className="h-screen w-full bg-slate-100 flex flex-col md:flex-row selection:bg-blue-600 selection:text-white font-sans text-slate-800 overflow-hidden">
       
       {/* Dynamic Toast Element */}
       <AnimatePresence>
@@ -416,18 +564,103 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* ────────────────────────────────────────────────────────────────────── */}
-      {/* PHONE SHELL WRAPPER */}
-      {/* ────────────────────────────────────────────────────────────────────── */}
-      <div className="relative w-full max-w-[390px] h-[800px] rounded-[48px] bg-[#F1F5F9] shadow-[0_0_0_12px_#1e293b,0_20px_50px_rgba(0,0,0,0.6)] border-4 border-slate-800 flex flex-col overflow-hidden select-none">
+      {/* Sidebar for Desktop */}
+      <div className="hidden md:flex w-64 bg-[#0F2044] text-white flex-col shrink-0 border-r border-slate-800">
+        <div className="p-6 border-b border-slate-850 flex items-center gap-3">
+          <div className="p-2 bg-blue-650 rounded-lg text-white">
+            <Shield className="w-5 h-5" />
+          </div>
+          <div>
+            <h1 className="font-bold text-sm tracking-tight text-white leading-none">Bimakavach</h1>
+            <span className="text-[9px] font-mono text-slate-400">AUTOPILOT CRM</span>
+          </div>
+        </div>
+        
+        <div className="p-4 border-b border-slate-850 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center font-bold text-xs text-slate-950 shadow-inner ring-2 ring-amber-400/30">
+            AK
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-xs font-bold text-white truncate">Arjun Kumar</h3>
+            <p className="text-[10px] text-slate-400">9 Active Deals</p>
+          </div>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-1">
+          <button 
+            onClick={() => {
+              setCurrentTab('Home');
+              setCurrentScreen('Home');
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              currentTab === 'Home' && currentScreen === 'Home' 
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' 
+                : 'text-slate-350 hover:text-white hover:bg-slate-800/40'
+            }`}
+          >
+            <HomeIcon className="w-4 h-4" />
+            <span>Home</span>
+          </button>
+
+          <button 
+            onClick={() => {
+              setCurrentTab('Pipeline');
+              setCurrentScreen('Home');
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              currentTab === 'Pipeline' && currentScreen === 'Home' 
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' 
+                : 'text-slate-350 hover:text-white hover:bg-slate-800/40'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Pipeline</span>
+          </button>
+
+          <button 
+            onClick={() => {
+              setCurrentTab('Activity');
+              setCurrentScreen('Home');
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer relative ${
+              currentTab === 'Activity' && currentScreen === 'Home' 
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' 
+                : 'text-slate-350 hover:text-white hover:bg-slate-800/40'
+            }`}
+          >
+            <div className="relative">
+              <ActivityIcon className="w-4 h-4" />
+              {(vertexAutoConfirmActive || cloudBaseConfirmActive) && (
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-amber-500 rounded-full" />
+              )}
+            </div>
+            <span>Activity</span>
+          </button>
+
+          <button 
+            onClick={() => {
+              setCurrentTab('Reports');
+              setCurrentScreen('Home');
+            }}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              currentTab === 'Reports' && currentScreen === 'Home' 
+                ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' 
+                : 'text-slate-355 hover:text-white hover:bg-slate-800/40'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Reports</span>
+          </button>
+        </nav>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-hidden relative select-none">
         
         {/* Dynamic Notch / Status Bar */}
-        <div className="bg-[#0F2044] text-white pt-3 pb-1 px-6 flex justify-between items-center text-[11px] font-semibold shrink-0 z-40 relative">
+        <div className="hidden bg-[#0F2044] text-white pt-3 pb-1 px-6 justify-between items-center text-[11px] font-semibold shrink-0 z-40 relative">
           <span>9:41 AM</span>
-          
-          {/* Black notch pill centered */}
           <div className="absolute top-1 left-1/2 -translate-x-1/2 w-28 h-4.5 bg-black rounded-full" />
-          
           <div className="flex items-center gap-1.5 font-mono text-[10px]">
             <span>Bima-5G</span>
             <div className="flex gap-0.5 items-end h-2 w-3">
@@ -456,7 +689,7 @@ export default function App() {
               exit={{ opacity: 0 }}
               className="flex-1 flex flex-col"
             >
-              <div className="bg-[#0F2044] text-white px-4 pt-3 pb-5 rounded-b-3xl shadow-sm tracking-tight relative overflow-hidden shrink-0">
+              <div className="bg-[#0F2044] text-white px-4 pt-3 pb-5 shadow-sm tracking-tight relative overflow-hidden shrink-0">
                 <div className="absolute inset-0 bg-radial-at-t from-[#1E3A8A]/30 to-transparent pointer-events-none" />
                 <div className="flex justify-between items-center relative z-10">
                   <div>
@@ -589,12 +822,12 @@ export default function App() {
                   )}
                 </AnimatePresence>
 
-                {/* 3. STATS GRID (2x2) */}
+                {/* 3. STATS GRID */}
                 <div>
                   <label className="block text-[10px] font-bold font-mono text-slate-500 uppercase tracking-widest mb-2.5">
                     KEY VALUE METRICS
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
                     <div className="bg-white p-3.5 rounded-xl border border-slate-200/85 shadow-xs flex flex-col justify-between">
                       <p className="text-[11px] font-semibold text-slate-500">Pipeline value</p>
                       <div className="mt-1 flex items-baseline gap-1.5">
@@ -635,114 +868,124 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 4. ACTIVE DEALS */}
-                <div>
-                  <div className="flex justify-between items-center mb-2.5">
-                    <label className="block text-[10px] font-bold font-mono text-slate-500 uppercase tracking-widest">
-                      ACTIVE DEALS (MILLER'S LIMIT)
-                    </label>
-                    <span className="text-[11px] text-[#1A56A4] font-semibold hover:underline cursor-pointer" onClick={() => setCurrentTab('Pipeline')}>
-                      View all ({deals.length})
-                    </span>
-                  </div>
-
-                  <div className="space-y-2">
-                    {deals.slice(0, 4).map((deal) => {
-                      // Status colors matching our design specs
-                      const getStageBadge = (stage: Deal['stage']) => {
-                        switch(stage) {
-                          case 'New Lead': return { bg: 'bg-indigo-50 border-indigo-100 text-indigo-700', bullet: '#6366F1' };
-                          case 'Discovery': return { bg: 'bg-teal-50 border-teal-100 text-teal-700', bullet: '#0D9488' };
-                          case 'Quote Shared': return { bg: 'bg-amber-50 border-amber-100 text-amber-600', bullet: '#F59E0B' };
-                          case 'Negotiation': return { bg: 'bg-purple-50 border-purple-100 text-purple-700', bullet: '#8B5CF6' };
-                          case 'Closed': return { bg: 'bg-emerald-50 border-emerald-100 text-emerald-700', bullet: '#10B981' };
-                        }
-                      };
-                      const badgeStyle = getStageBadge(deal.stage);
-                      const isIdle = deal.idle > 2;
-
-                      return (
-                        <motion.div
-                          whileTap={{ scale: 0.97 }}
-                          key={deal.id}
-                          onClick={() => handleDealSelection(deal.id)}
-                          className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer hover:border-blue-300 transition-all hover:shadow-md"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div 
-                              className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs text-slate-700"
-                              style={{ backgroundColor: deal.color + '20' }}
-                            >
-                              {deal.initials}
-                            </div>
-                            <div>
-                              <h4 className="text-[13px] font-semibold text-slate-900 leading-tight">
-                                {deal.company}
-                              </h4>
-                              <div className="flex items-center gap-1.5 mt-1">
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badgeStyle.bg} font-medium`}>
-                                  {deal.stage}
-                                </span>
-                                {deal.autoLogged && (
-                                  <span className="bg-teal-500/10 text-teal-600 text-[8px] font-bold font-mono px-1 py-0.5 rounded-[4px] border border-teal-500/20">
-                                    [AUTO]
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="text-right">
-                            <p className="text-[13px] font-bold text-[#0F2044] leading-tight">{deal.value}</p>
-                            <p className={`text-[10px] mt-1 font-semibold ${isIdle ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
-                              {deal.idle === 0 ? 'Today' : `${deal.idle}d idle`}
-                            </p>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* 5. UPCOMING RENEWALS */}
-                <div>
-                  <label className="block text-[10px] font-bold font-mono text-slate-500 uppercase tracking-widest mb-2.5">
-                    UPCOMING RENEWALS
-                  </label>
+                {/* Grid for main sections */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                   
-                  <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs">
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-start gap-2.5">
-                        <span className="text-lg">📅</span>
-                        <div>
-                          <h4 className="text-[13px] font-semibold text-slate-900 leading-tight">TechPlex Infra · Fire Policy</h4>
-                          <p className="text-[11.5px] text-slate-500 mt-1">
-                            Renews in 28 days · ₹2.1L premium
-                          </p>
+                  {/* Left Section (2/3 width on desktop) */}
+                  <div className="md:col-span-2 space-y-6">
+                    {/* Active Deals list */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2.5">
+                        <label className="block text-[10px] font-bold font-mono text-slate-500 uppercase tracking-widest">
+                          ACTIVE DEALS (MILLER'S LIMIT)
+                        </label>
+                        <span className="text-[11px] text-[#1A56A4] font-semibold hover:underline cursor-pointer" onClick={() => setCurrentTab('Pipeline')}>
+                          View all ({deals.length})
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {deals.slice(0, 4).map((deal) => {
+                          const getStageBadge = (stage: Deal['stage']) => {
+                            switch(stage) {
+                              case 'New Lead': return { bg: 'bg-indigo-50 border-indigo-100 text-indigo-700', bullet: '#6366F1' };
+                              case 'Discovery': return { bg: 'bg-teal-50 border-teal-100 text-teal-700', bullet: '#0D9488' };
+                              case 'Quote Shared': return { bg: 'bg-amber-50 border-amber-100 text-amber-600', bullet: '#F59E0B' };
+                              case 'Negotiation': return { bg: 'bg-purple-50 border-purple-100 text-purple-700', bullet: '#8B5CF6' };
+                              case 'Closed': return { bg: 'bg-emerald-50 border-emerald-100 text-emerald-700', bullet: '#10B981' };
+                            }
+                          };
+                          const badgeStyle = getStageBadge(deal.stage);
+                          const isIdle = deal.idle > 2;
+
+                          return (
+                            <motion.div
+                              whileTap={{ scale: 0.97 }}
+                              key={deal.id}
+                              onClick={() => handleDealSelection(deal.id)}
+                              className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs flex items-center justify-between cursor-pointer hover:border-blue-300 transition-all hover:shadow-md"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div 
+                                  className="w-10 h-10 rounded-lg flex items-center justify-center font-bold text-xs text-slate-700"
+                                  style={{ backgroundColor: deal.color + '20' }}
+                                >
+                                  {deal.initials}
+                                </div>
+                                <div className="text-left">
+                                  <h4 className="text-[13px] font-semibold text-slate-900 leading-tight">
+                                    {deal.company}
+                                  </h4>
+                                  <div className="flex items-center gap-1.5 mt-1">
+                                    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${badgeStyle.bg} font-medium`}>
+                                      {deal.stage}
+                                    </span>
+                                    {deal.autoLogged && (
+                                      <span className="bg-teal-500/10 text-teal-600 text-[8px] font-bold font-mono px-1 py-0.5 rounded-[4px] border border-teal-500/20">
+                                        [AUTO]
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="text-right">
+                                <p className="text-[13px] font-bold text-[#0F2044] leading-tight">{deal.value}</p>
+                                <p className={`text-[10px] mt-1 font-semibold ${isIdle ? 'text-red-500 font-bold' : 'text-slate-400'}`}>
+                                  {deal.idle === 0 ? 'Today' : `${deal.idle}d idle`}
+                                </p>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Section (1/3 width on desktop) */}
+                  <div className="space-y-6">
+                    {/* 5. UPCOMING RENEWALS */}
+                    <div>
+                      <label className="block text-[10px] font-bold font-mono text-slate-500 uppercase tracking-widest mb-2.5">
+                        UPCOMING RENEWALS
+                      </label>
+                      
+                      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs text-left">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-start gap-2.5">
+                            <span className="text-lg">📅</span>
+                            <div>
+                              <h4 className="text-[13px] font-semibold text-slate-900 leading-tight">TechPlex Infra · Fire Policy</h4>
+                              <p className="text-[11.5px] text-slate-500 mt-1">
+                                Renews in 28 days · ₹2.1L premium
+                              </p>
+                            </div>
+                          </div>
+                          <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-100 text-right">
+                            28d
+                          </span>
+                        </div>
+
+                        {/* Progress Bar with animation simulation */}
+                        <div className="mt-3.5">
+                          <div className="flex justify-between text-[10px] text-slate-400 font-medium mb-1">
+                            <span>Expiry Timeline</span>
+                            <span className="text-red-500 font-bold">Urgent Action Required</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              whileInView={{ width: '70%' }}
+                              viewport={{ once: true }}
+                              transition={{ duration: 0.8, ease: 'easeOut' }}
+                              className="bg-red-500 h-full rounded-full"
+                            />
+                          </div>
                         </div>
                       </div>
-                      <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-100 text-right">
-                        28d
-                      </span>
-                    </div>
-
-                    {/* Progress Bar with animation simulation */}
-                    <div className="mt-3.5">
-                      <div className="flex justify-between text-[10px] text-slate-400 font-medium mb-1">
-                        <span>Expiry Timeline</span>
-                        <span className="text-red-500 font-bold">Urgent Action Required</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          whileInView={{ width: '70%' }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.8, ease: 'easeOut' }}
-                          className="bg-red-500 h-full rounded-full"
-                        />
-                      </div>
                     </div>
                   </div>
+
                 </div>
 
               </div>
@@ -791,183 +1034,15 @@ export default function App() {
                 ))}
               </div>
 
-              {/* GROUPED DEALS LISTING */}
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 no-scrollbar">
-                
-                {/* STAGE: Quote Shared */}
-                {(pipelineFilter === 'All' || pipelineFilter === 'Quote') && (
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center select-none">
-                      <span className="text-[10px] text-amber-600 font-bold tracking-wider uppercase">
-                        🟧 Quote Shared — 2 deals · ₹13.6L
-                      </span>
-                    </div>
-
-                    {/* Deal Card 1: Techplex */}
-                    {filteredDeals.find(d => d.id === 1) && (
-                      <motion.div
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleDealSelection(1)}
-                        className="bg-white rounded-xl overflow-hidden border-l-[4px] border-amber-500 shadow-xs border border-y-slate-200 border-r-slate-200 hover:border-slate-300 cursor-pointer p-3.5"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="text-[13.5px] font-bold text-slate-900">TechPlex Infra</h4>
-                            <p className="text-[11.5px] text-slate-500 mt-0.5">Fire + Liability · Quoted ₹8.4L</p>
-                          </div>
-                          <span className="text-red-500 text-[10px] font-bold font-mono">3d idle</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 mt-3">
-                          <span className="bg-red-50 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-red-100 flex items-center gap-1 select-none">
-                            <AlertTriangle className="w-2.5 h-2.5 text-red-500" />
-                            Idle
-                          </span>
-                          <button 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowUpsellModal(true);
-                            }}
-                            className="bg-[#0F2044]/5 hover:bg-[#0F2044]/10 text-[#0F2044] text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200/70 select-none flex items-center gap-1 animate-pulse"
-                          >
-                            Cyber upsell ↗
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* Deal Card 2: Vertex */}
-                    {filteredDeals.find(d => d.id === 2) && (
-                      <motion.div
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleDealSelection(2)}
-                        className="bg-white rounded-xl overflow-hidden border-l-[4px] border-teal-500 shadow-xs border border-y-slate-200 border-r-slate-200 hover:border-slate-300 cursor-pointer p-3.5"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="text-[13.5px] font-bold text-slate-900 flex items-center gap-1.5">
-                              Vertex Solutions
-                            </h4>
-                            <p className="text-[11.5px] text-slate-500 mt-0.5">Group Health · Quoted ₹5.2L</p>
-                          </div>
-                          <span className="text-teal-600 text-[10px] font-bold font-mono">Today</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 mt-3">
-                          <span className="bg-teal-50 text-teal-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-teal-100 flex items-center gap-1 select-none">
-                            ✦ Auto-logged
-                          </span>
-                          <span className="bg-orange-50 text-orange-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-100 select-none">
-                            Warm
-                          </span>
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
-                )}
-
-                {/* STAGE: Negotiation */}
-                {(pipelineFilter === 'All' || pipelineFilter === 'Negotiation') && (
-                  <div className="space-y-2 mt-4">
-                    <span className="text-[10px] text-purple-600 font-bold tracking-wider uppercase">
-                      🟪 Negotiation — 1 deal · ₹12.1L
-                    </span>
-
-                    {/* Mango Foods */}
-                    {filteredDeals.find(d => d.id === 3) && (
-                      <motion.div
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleDealSelection(3)}
-                        className="bg-white rounded-xl overflow-hidden border-l-[4px] border-purple-500 shadow-xs border border-y-slate-200 border-r-slate-200 hover:border-slate-300 cursor-pointer p-3.5"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="text-[13.5px] font-bold text-slate-900">Mango Foods Ltd</h4>
-                            <p className="text-[11.5px] text-slate-500 mt-0.5">Marine + Asset · ₹12.1L</p>
-                          </div>
-                          <span className="text-slate-400 text-[10px] font-bold font-mono">1d ago</span>
-                        </div>
-                        
-                        <div className="mt-3">
-                          <div className="flex justify-between text-[10px] text-slate-400 font-medium mb-1 select-none">
-                            <span>82% likely to close</span>
-                            <span>3 days in negotiation</span>
-                          </div>
-                          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                            <motion.div 
-                              initial={{ width: 0 }}
-                              whileInView={{ width: '82%' }}
-                              viewport={{ once: true }}
-                              transition={{ duration: 0.6 }}
-                              className="bg-purple-600 h-full"
-                            />
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
-                )}
-
-                {/* STAGE: Discovery */}
-                {(pipelineFilter === 'All' || pipelineFilter === 'Discovery') && (
-                  <div className="space-y-2 mt-4">
-                    <span className="text-[10px] text-emerald-600 font-bold tracking-wider uppercase">
-                      🟩 Discovery — 3 deals · ₹14.1L
-                    </span>
-
-                    {/* Razorpay */}
-                    {filteredDeals.find(d => d.id === 4) && (
-                      <motion.div
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleDealSelection(4)}
-                        className="bg-white rounded-xl overflow-hidden border-l-[4px] border-amber-600 shadow-xs border border-y-slate-200 border-r-slate-200 hover:border-slate-300 cursor-pointer p-3.5"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="text-[13.5px] font-bold text-slate-900">Razorpay FinTech</h4>
-                            <p className="text-[11.5px] text-slate-500 mt-0.5">Cyber + D&O · est. ₹3.8L</p>
-                          </div>
-                          <span className="text-[#0F2044] text-[10px] font-bold font-mono">2d ago</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 mt-3 select-none">
-                          <span className="bg-[#1A56A4]/10 text-[#1A56A4] text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-100">
-                            Discovery done AUTO
-                          </span>
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
-                )}
-
-                {/* STAGE: New Lead */}
-                {(pipelineFilter === 'All' || pipelineFilter === 'New Lead') && (
-                  <div className="space-y-2 mt-4">
-                    <span className="text-[10px] text-indigo-600 font-bold tracking-wider uppercase">
-                      🟦 New Lead — 3 deals · ₹8.2L
-                    </span>
-
-                    {/* CloudBase Systems */}
-                    {filteredDeals.find(d => d.id === 5) && (
-                      <motion.div
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => handleDealSelection(5)}
-                        className="bg-white rounded-xl overflow-hidden border-l-[4px] border-indigo-600 shadow-xs border border-y-slate-200 border-r-slate-200 hover:border-slate-300 cursor-pointer p-3.5"
-                      >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="text-[13.5px] font-bold text-slate-900">CloudBase Systems</h4>
-                            <p className="text-[11.5px] text-slate-500 mt-0.5">Liability · Inbound via WhatsApp</p>
-                          </div>
-                          <span className="text-indigo-600 text-[10px] font-bold font-mono">Today</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 mt-3 select-none">
-                          <span className="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-100">
-                            ✦ Auto-created from WhatsApp
-                          </span>
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
-                )}
-
+              {/* GROUPED DEALS LISTING (Kanban board layout on desktop, stacked on mobile) */}
+              <div className="flex-1 overflow-auto p-4 md:p-6 no-scrollbar">
+                <div className="flex flex-col md:flex-row gap-6 md:h-full md:items-start min-w-0 overflow-x-auto no-scrollbar">
+                  {(pipelineFilter === 'All' || pipelineFilter === 'New Lead') && renderStageColumn('New Lead', 'text-indigo-650', '🟦')}
+                  {(pipelineFilter === 'All' || pipelineFilter === 'Discovery') && renderStageColumn('Discovery', 'text-teal-650', '🟩')}
+                  {(pipelineFilter === 'All' || pipelineFilter === 'Quote') && renderStageColumn('Quote Shared', 'text-amber-500', '🟧')}
+                  {(pipelineFilter === 'All' || pipelineFilter === 'Negotiation') && renderStageColumn('Negotiation', 'text-purple-650', '🟪')}
+                  {(pipelineFilter === 'All' || pipelineFilter === 'Closed') && renderStageColumn('Closed', 'text-emerald-750', '🟢')}
+                </div>
               </div>
             </motion.div>
           )}
@@ -984,21 +1059,43 @@ export default function App() {
               className="flex-1 flex flex-col bg-slate-50 absolute inset-0 z-30"
             >
               {/* Back Bar Header Section (Dark Navy) */}
-              <div className="bg-[#0F2044] text-white px-4 pt-3 pb-5 rounded-b-2xl shadow-sm shrink-0 tracking-tight relative overflow-hidden">
+              <div className="bg-[#0F2044] text-white px-4 md:px-8 pt-3 pb-5 rounded-b-2xl shadow-sm shrink-0 tracking-tight relative overflow-hidden text-left">
                 <div className="absolute inset-0 bg-radial-at-t from-blue-900/30 to-transparent pointer-events-none" />
                 
                 <div className="flex justify-between items-center mb-3">
                   <button 
                     onClick={() => setCurrentScreen('Home')}
-                    className="p-1.5 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-800 text-white flex items-center justify-center transition-colors border border-slate-700/60"
+                    className="p-1.5 w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-800 text-white flex items-center justify-center transition-colors border border-slate-700/60 cursor-pointer"
                   >
                     <ArrowLeft className="w-4 h-4" />
                   </button>
+
+                  {/* Desktop action buttons */}
+                  <div className="hidden md:flex gap-2">
+                    <button 
+                      onClick={() => {
+                        setWhatsappDraft(whatsappDraft || "Hi Rajeev, just checking in on the quote we shared. Happy to answer any questions!");
+                        setCurrentScreen('WhatsAppChat');
+                      }}
+                      className="py-1.5 px-4 bg-[#075E54] hover:bg-[#075E54]/95 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Message (WhatsApp)
+                    </button>
+                    <button 
+                      onClick={() => setShowCallModal(true)}
+                      className="py-1.5 px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer border border-slate-700"
+                    >
+                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                      Log Voice Call
+                    </button>
+                  </div>
+
                   <span className="text-xs bg-slate-800 border border-slate-700/60 px-2 py-1 rounded-md text-slate-300 font-mono font-medium">Bimakavach Linked</span>
                 </div>
 
-                <h1 className="text-[19px] font-semibold tracking-tight">{selectedDeal.company}</h1>
-                <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                <h1 className="text-[19px] md:text-2xl font-semibold tracking-tight">{selectedDeal.company}</h1>
+                <p className="text-[11px] md:text-xs text-slate-300 mt-1 leading-relaxed">
                   {selectedDeal.industry || 'SME Business'} · {selectedDeal.location} · Est. 2018 · ~200 employees
                 </p>
 
@@ -1018,149 +1115,159 @@ export default function App() {
               </div>
 
               {/* Deal Detail Content */}
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 no-scrollbar pb-24">
+              <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6 no-scrollbar pb-24">
                 
-                {/* Condition specific nudge card for Techplex id #1 */}
-                {selectedDeal.id === 1 && nudgeActive && (
-                  <motion.div
-                    initial={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9, height: 0, overflow: 'hidden' }}
-                    className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 rounded-xl p-4 shadow-sm"
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <span className="text-base mt-0.5">💬</span>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-[13px] font-semibold text-amber-800 leading-tight">3 days no response — follow up now?</h4>
-                        <p className="text-[11px] text-slate-600 mt-1 font-mono leading-relaxed">
-                          Last message: 'Here is the quote for your review' (Jun 2). Draft message ready.
-                        </p>
-                        <div className="flex gap-2 mt-3">
-                          <button
-                            onClick={() => {
-                              setWhatsappDraft("Hi Rajeev, just checking in on the quote we shared. Happy to answer any questions!");
-                              setCurrentScreen('WhatsAppChat');
-                            }}
-                            className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-bold rounded-lg transition-colors inline-flex items-center gap-1"
-                          >
-                            Open draft ↗
-                          </button>
-                          <button
-                            onClick={() => {
-                              setNudgeActive(false);
-                              handleSnoozeTechplex();
-                            }}
-                            className="px-2.5 py-1.5 bg-slate-200/80 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold rounded-lg transition-colors"
-                          >
-                            Snooze 1d
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* AI INSIGHT CARD */}
-                <div className="bg-gradient-to-br from-blue-900 to-indigo-950 text-white rounded-xl p-4 shadow-md relative overflow-hidden border border-indigo-500/20">
-                  <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 opacity-15">
-                    <Sparkles className="w-24 h-24 text-indigo-400" />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="p-1 px-2 bg-gradient-to-r from-cyan-400 to-indigo-400 text-slate-950 font-bold font-mono text-[9px] rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm select-none">
-                      <Sparkles className="w-3 h-3 text-emerald-950" />
-                      AI Insight
-                    </div>
-                  </div>
-                  <p className="text-xs text-indigo-100 mt-3 leading-relaxed font-sans font-medium">
-                    {selectedDeal.id === 1 ? (
-                      "TechPlex's warehouse expanded to Nagpur last month (MCA filing). Their current fire policy may be underinsured. Consider upselling asset coverage."
-                    ) : selectedDeal.id === 2 ? (
-                      "Vertex is onboarding 45 fresh hires in Bangalore next Monday. Leverage this growth to upsell Top-up hospitalization policies."
-                    ) : selectedDeal.id === 3 ? (
-                      "Marine transit route from Mumbai Port detected in draft import bills. Pitch Marine Cargo Insurance package to close negotiation gap ASAP."
-                    ) : (
-                      "Industry peers in financial technology experienced a 3x uptick in Ransomware attempts. Highlight Cyber D&O indemnity liability rates in quote."
-                    )}
-                  </p>
-                </div>
-
-                {/* CURRENT POLICIES */}
-                <div>
-                  <label className="block text-[10px] font-bold font-mono text-slate-500 uppercase tracking-widest mb-2 select-none">
-                    CURRENT POLICIES
-                  </label>
-                  <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs divide-y divide-slate-150">
-                    <div className="p-3 flex justify-between items-center">
-                      <div>
-                        <h4 className="text-[13px] font-semibold text-slate-800">Fire & Allied Perils</h4>
-                        <p className="text-[11px] text-slate-400 mt-0.5">HDFC Ergo · Annual Policy</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold text-slate-700">₹2.1L Premium</p>
-                        <span className="inline-block mt-0.5 text-[9px] bg-red-50 text-red-600 border border-red-100 font-bold font-mono px-1.5 py-0.5 rounded-[4px] select-none">
-                          Renews 30 Jun
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="p-3 flex justify-between items-center">
-                      <div>
-                        <h4 className="text-[13px] font-semibold text-slate-800">General Liability</h4>
-                        <p className="text-[11px] text-slate-400 mt-0.5">Bajaj Allianz · Multi-hazard</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold text-slate-700">₹0.9L Premium</p>
-                        <span className="inline-block mt-0.5 text-[9px] bg-emerald-50 text-emerald-600 border border-emerald-100 font-bold font-mono px-1.5 py-0.5 rounded-[4px] select-none">
-                          Active
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* CONVERSATION TIMELINE */}
-                <div>
-                  <label className="block text-[10px] font-bold font-mono text-slate-500 uppercase tracking-widest mb-3 select-none">
-                    CONVERSATION TIMELINE
-                  </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                   
-                  <div className="relative pl-5 border-l border-slate-350 space-y-4">
-                    {(timelineEvents[selectedDeal.id] || []).map((ev, index) => {
-                      const dotColors = {
-                        email: 'bg-red-500 ring-4 ring-red-100',
-                        call: 'bg-emerald-500 ring-4 ring-emerald-100',
-                        whatsapp: 'bg-green-500 ring-4 ring-green-100',
-                        system: 'bg-violet-600 ring-4 ring-violet-100'
-                      };
-
-                      return (
-                        <div key={index} className="relative">
-                          {/* Timeline colored dot */}
-                          <div className={`absolute -left-[25px] top-[4px] w-2.5 h-2.5 rounded-full ${dotColors[ev.type]}`} />
-                          
-                          <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
-                            <div className="flex justify-between items-start gap-1">
-                              <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                                {ev.title}
-                                {ev.isAuto && (
-                                  <span className="text-[8px] bg-teal-500/10 text-teal-600 font-bold border border-teal-500/20 rounded-[4px] px-1 py-0.5 font-mono">
-                                    AUTO
-                                  </span>
-                                )}
-                              </h4>
-                              <span className="text-[9px] text-slate-400 font-medium whitespace-nowrap">{ev.time}</span>
+                  {/* Left Column (2/3 width) */}
+                  <div className="md:col-span-2 space-y-6">
+                    {/* Condition specific nudge card for Techplex id #1 */}
+                    {selectedDeal.id === 1 && nudgeActive && (
+                      <motion.div
+                        initial={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9, height: 0, overflow: 'hidden' }}
+                        className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border border-amber-500/20 rounded-xl p-4 shadow-sm text-left"
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <span className="text-base mt-0.5">💬</span>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-[13px] font-semibold text-amber-800 leading-tight">3 days no response — follow up now?</h4>
+                            <p className="text-[11px] text-slate-600 mt-1 font-mono leading-relaxed">
+                              Last message: 'Here is the quote for your review' (Jun 2). Draft message ready.
+                            </p>
+                            <div className="flex gap-2 mt-3">
+                              <button
+                                onClick={() => {
+                                  setWhatsappDraft("Hi Rajeev, just checking in on the quote we shared. Happy to answer any questions!");
+                                  setCurrentScreen('WhatsAppChat');
+                                }}
+                                className="px-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 text-[10px] font-bold rounded-lg transition-colors inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                Open draft ↗
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setNudgeActive(false);
+                                  handleSnoozeTechplex();
+                                }}
+                                className="px-2.5 py-1.5 bg-slate-200/80 hover:bg-slate-200 text-slate-700 text-[10px] font-semibold rounded-lg transition-colors cursor-pointer"
+                              >
+                                Snooze 1d
+                              </button>
                             </div>
-                            <p className="text-[11.5px] text-slate-600 mt-1 leading-relaxed">{ev.sub}</p>
                           </div>
                         </div>
-                      );
-                    })}
+                      </motion.div>
+                    )}
+
+                    {/* AI INSIGHT CARD */}
+                    <div className="bg-gradient-to-br from-blue-900 to-indigo-950 text-white rounded-xl p-4 shadow-md relative overflow-hidden border border-indigo-500/20 text-left">
+                      <div className="absolute right-0 top-0 translate-x-3 -translate-y-3 opacity-15">
+                        <Sparkles className="w-24 h-24 text-indigo-400" />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="p-1 px-2 bg-gradient-to-r from-cyan-400 to-indigo-400 text-slate-950 font-bold font-mono text-[9px] rounded-full uppercase tracking-wider flex items-center gap-1 shadow-sm select-none">
+                          <Sparkles className="w-3 h-3 text-emerald-950" />
+                          AI Insight
+                        </div>
+                      </div>
+                      <p className="text-xs text-indigo-100 mt-3 leading-relaxed font-sans font-medium">
+                        {selectedDeal.id === 1 ? (
+                          "TechPlex's warehouse expanded to Nagpur last month (MCA filing). Their current fire policy may be underinsured. Consider upselling asset coverage."
+                        ) : selectedDeal.id === 2 ? (
+                          "Vertex is onboarding 45 fresh hires in Bangalore next Monday. Leverage this growth to upsell Top-up hospitalization policies."
+                        ) : selectedDeal.id === 3 ? (
+                          "Marine transit route from Mumbai Port detected in draft import bills. Pitch Marine Cargo Insurance package to close negotiation gap ASAP."
+                        ) : (
+                          "Industry peers in financial technology experienced a 3x uptick in Ransomware attempts. Highlight Cyber D&O indemnity liability rates in quote."
+                        )}
+                      </p>
+                    </div>
+
+                    {/* CURRENT POLICIES */}
+                    <div className="text-left">
+                      <label className="block text-[10px] font-bold font-mono text-slate-500 uppercase tracking-widest mb-2 select-none">
+                        CURRENT POLICIES
+                      </label>
+                      <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs divide-y divide-slate-150">
+                        <div className="p-3 flex justify-between items-center">
+                          <div>
+                            <h4 className="text-[13px] font-semibold text-slate-800">Fire & Allied Perils</h4>
+                            <p className="text-[11px] text-slate-400 mt-0.5">HDFC Ergo · Annual Policy</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-bold text-slate-700">₹2.1L Premium</p>
+                            <span className="inline-block mt-0.5 text-[9px] bg-red-50 text-red-600 border border-red-100 font-bold font-mono px-1.5 py-0.5 rounded-[4px] select-none">
+                              Renews 30 Jun
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-3 flex justify-between items-center">
+                          <div>
+                            <h4 className="text-[13px] font-semibold text-slate-800">General Liability</h4>
+                            <p className="text-[11px] text-slate-400 mt-0.5">Bajaj Allianz · Multi-hazard</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs font-bold text-slate-700">₹0.9L Premium</p>
+                            <span className="inline-block mt-0.5 text-[9px] bg-emerald-50 text-emerald-600 border border-emerald-100 font-bold font-mono px-1.5 py-0.5 rounded-[4px] select-none">
+                              Active
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
+
+                  {/* Right Column (1/3 width) */}
+                  <div className="space-y-6 text-left">
+                    {/* CONVERSATION TIMELINE */}
+                    <div>
+                      <label className="block text-[10px] font-bold font-mono text-slate-500 uppercase tracking-widest mb-3 select-none">
+                        CONVERSATION TIMELINE
+                      </label>
+                      
+                      <div className="relative pl-5 border-l border-slate-350 space-y-4">
+                        {(timelineEvents[selectedDeal.id] || []).map((ev, index) => {
+                          const dotColors = {
+                            email: 'bg-red-500 ring-4 ring-red-100',
+                            call: 'bg-emerald-500 ring-4 ring-emerald-100',
+                            whatsapp: 'bg-green-500 ring-4 ring-green-100',
+                            system: 'bg-violet-600 ring-4 ring-violet-100'
+                          };
+
+                          return (
+                            <div key={index} className="relative text-left">
+                              {/* Timeline colored dot */}
+                              <div className={`absolute -left-[25px] top-[4px] w-2.5 h-2.5 rounded-full ${dotColors[ev.type]}`} />
+                              
+                              <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs">
+                                <div className="flex justify-between items-start gap-1">
+                                  <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                                    {ev.title}
+                                    {ev.isAuto && (
+                                      <span className="text-[8px] bg-teal-500/10 text-teal-600 font-bold border border-teal-500/20 rounded-[4px] px-1 py-0.5 font-mono">
+                                        AUTO
+                                      </span>
+                                    )}
+                                  </h4>
+                                  <span className="text-[9px] text-slate-400 font-medium whitespace-nowrap">{ev.time}</span>
+                                </div>
+                                <p className="text-[11.5px] text-slate-600 mt-1 leading-relaxed">{ev.sub}</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
 
               </div>
 
-              {/* Bottom Action Bar */}
-              <div className="absolute bottom-0 left-0 right-0 p-3 bg-white border-t border-slate-200/90 flex gap-2 z-10 shadow-lg">
+              {/* Bottom Action Bar (hidden on desktop) */}
+              <div className="absolute md:hidden bottom-0 left-0 right-0 p-3 bg-white border-t border-slate-200/90 flex gap-2 z-10 shadow-lg">
                 <button 
                   onClick={() => {
                     setWhatsappDraft(whatsappDraft || "Hi Rajeev, just checking in on the quote we shared. Happy to answer any questions!");
@@ -1193,187 +1300,206 @@ export default function App() {
               exit={{ opacity: 0 }}
               className="flex-1 flex flex-col"
             >
-              <div className="bg-[#0F2044] text-white px-4 pt-3 pb-4 shadow-sm shrink-0 relative">
+              <div className="bg-[#0F2044] text-white px-4 md:px-8 pt-3 pb-4 shadow-sm shrink-0 relative text-left">
                 <div>
-                  <h1 className="text-[17px] font-semibold">Activity Logs</h1>
-                  <p className="text-[11px] text-slate-300 font-medium mt-0.5">
+                  <h1 className="text-[17px] md:text-xl font-semibold">Activity Logs</h1>
+                  <p className="text-[11px] md:text-xs text-slate-300 font-medium mt-0.5">
                     4 auto-logged today · 2 pending confirm
                   </p>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 no-scrollbar">
+              <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6 space-y-4 no-scrollbar">
                 
-                {/* A. PENDING YOUR CONFIRMATION */}
-                <div>
-                  <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2">
-                    PENDING YOUR CONFIRMATION
-                  </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                   
-                  <div className="space-y-3">
-                    {/* Item 1: Vertex Solutions */}
-                    <AnimatePresence>
-                      {vertexAutoConfirmActive && (
-                        <motion.div
-                          initial={{ opacity: 1, height: 'auto', scale: 1 }}
-                          exit={{ opacity: 0, height: 0, scale: 0.9, marginBottom: 0, overflow: 'hidden' }}
-                          className="bg-white border-l-[4px] border-teal-500 rounded-r-xl border-y border-r border-slate-200 p-3 shadow-xs"
-                        >
-                          <div className="flex gap-2.5 items-start">
-                            <div className="p-1.5 bg-teal-100 rounded-lg text-teal-600 shrink-0 select-none">
-                              <Zap className="w-4 h-4 text-teal-600 animate-pulse" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-center mb-0.5">
-                                <h4 className="text-xs font-bold text-slate-900">Vertex Solutions → Quote Shared [AUTO]</h4>
-                                <span className="text-[9px] text-slate-400 font-medium">2m ago</span>
-                              </div>
-                              <p className="text-[11.5px] text-slate-500 leading-relaxed font-sans">
-                                Email subject "Quote for Group Health Cover" detected. Stage advanced automatically.
-                              </p>
+                  {/* Left Column (2/3 width) */}
+                  <div className="md:col-span-2 space-y-6 text-left">
+                    {/* A. PENDING YOUR CONFIRMATION */}
+                    <div>
+                      <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2">
+                        PENDING YOUR CONFIRMATION
+                      </label>
+                      
+                      <div className="space-y-3">
+                        {/* Item 1: Vertex Solutions */}
+                        <AnimatePresence>
+                          {vertexAutoConfirmActive && (
+                            <motion.div
+                              initial={{ opacity: 1, height: 'auto', scale: 1 }}
+                              exit={{ opacity: 0, height: 0, scale: 0.9, marginBottom: 0, overflow: 'hidden' }}
+                              className="bg-white border-l-[4px] border-teal-500 rounded-r-xl border-y border-r border-slate-200 p-3 shadow-xs"
+                            >
+                              <div className="flex gap-2.5 items-start">
+                                <div className="p-1.5 bg-teal-100 rounded-lg text-teal-600 shrink-0 select-none">
+                                  <Zap className="w-4 h-4 text-teal-600 animate-pulse" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex justify-between items-center mb-0.5">
+                                    <h4 className="text-xs font-bold text-slate-900">Vertex Solutions → Quote Shared [AUTO]</h4>
+                                    <span className="text-[9px] text-slate-400 font-medium">2m ago</span>
+                                  </div>
+                                  <p className="text-[11.5px] text-slate-500 leading-relaxed font-sans">
+                                    Email subject "Quote for Group Health Cover" detected. Stage advanced automatically.
+                                  </p>
 
-                              <div className="flex gap-2 mt-2.5">
-                                <button 
-                                  onClick={handleConfirmVertex}
-                                  className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-md"
-                                >
-                                  ✓ Correct
-                                </button>
-                                
-                                <div className="relative">
-                                  <button 
-                                    onClick={() => setShowStageDropdownId(showStageDropdownId === 22 ? null : 22)}
-                                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-semibold rounded-md flex items-center gap-1"
-                                  >
-                                    Edit stage
-                                    <ChevronDown className="w-3 h-3 text-slate-400" />
-                                  </button>
+                                  <div className="flex gap-2 mt-2.5">
+                                    <button 
+                                      onClick={handleConfirmVertex}
+                                      className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-md cursor-pointer"
+                                    >
+                                      ✓ Correct
+                                    </button>
+                                    
+                                    <div className="relative">
+                                      <button 
+                                        onClick={() => setShowStageDropdownId(showStageDropdownId === 22 ? null : 22)}
+                                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                                      >
+                                        Edit stage
+                                        <ChevronDown className="w-3 h-3 text-slate-400" />
+                                      </button>
 
-                                  {showStageDropdownId === 22 && (
-                                    <div className="absolute left-0 bottom-full mb-1 z-20 bg-white border border-slate-200 rounded-lg shadow-xl p-1.5 w-36 text-xs text-slate-700">
-                                      <p className="text-[9px] font-bold text-slate-400 p-1 uppercase tracking-wider">New Stage</p>
-                                      {(['New Lead', 'Discovery', 'Quote Shared', 'Negotiation', 'Closed'] as const).map((stg) => (
-                                        <button
-                                          key={stg}
-                                          onClick={() => handleStageChange(2, stg)}
-                                          className="w-full text-left p-1.5 rounded-md hover:bg-slate-100 transition-colors"
-                                        >
-                                          {stg}
-                                        </button>
-                                      ))}
+                                      {showStageDropdownId === 22 && (
+                                        <div className="absolute left-0 bottom-full mb-1 z-20 bg-white border border-slate-200 rounded-lg shadow-xl p-1.5 w-36 text-xs text-slate-700">
+                                          <p className="text-[9px] font-bold text-slate-400 p-1 uppercase tracking-wider">New Stage</p>
+                                          {(['New Lead', 'Discovery', 'Quote Shared', 'Negotiation', 'Closed'] as const).map((stg) => (
+                                            <button
+                                              key={stg}
+                                              onClick={() => handleStageChange(2, stg)}
+                                              className="w-full text-left p-1.5 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+                                            >
+                                              {stg}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
 
-                    {/* Item 2: CloudBase Systems */}
-                    <AnimatePresence>
-                      {cloudBaseConfirmActive && (
-                        <motion.div
-                          initial={{ opacity: 1, height: 'auto', scale: 1 }}
-                          exit={{ opacity: 0, height: 0, scale: 0.9, marginBottom: 0, overflow: 'hidden' }}
-                          className="bg-white border-l-[4px] border-blue-600 rounded-r-xl border-y border-r border-slate-200 p-3 shadow-xs"
-                        >
-                          <div className="flex gap-2.5 items-start">
-                            <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600 shrink-0 select-none">
-                              <Zap className="w-4 h-4 text-blue-600 animate-pulse" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-center mb-0.5">
-                                <h4 className="text-xs font-bold text-slate-900">CloudBase Systems → New Lead [AUTO]</h4>
-                                <span className="text-[9px] text-slate-400 font-medium">1h ago</span>
-                              </div>
-                              <p className="text-[11.5px] text-slate-500 leading-relaxed font-sans">
-                                Inbound WhatsApp from +91 98334-12942: 'Looking for liability insurance.' Lead auto-created.
-                              </p>
+                        {/* Item 2: CloudBase Systems */}
+                        <AnimatePresence>
+                          {cloudBaseConfirmActive && (
+                            <motion.div
+                              initial={{ opacity: 1, height: 'auto', scale: 1 }}
+                              exit={{ opacity: 0, height: 0, scale: 0.9, marginBottom: 0, overflow: 'hidden' }}
+                              className="bg-white border-l-[4px] border-blue-600 rounded-r-xl border-y border-r border-slate-200 p-3 shadow-xs"
+                            >
+                              <div className="flex gap-2.5 items-start">
+                                <div className="p-1.5 bg-blue-100 rounded-lg text-blue-600 shrink-0 select-none">
+                                  <Zap className="w-4 h-4 text-blue-600 animate-pulse" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex justify-between items-center mb-0.5">
+                                    <h4 className="text-xs font-bold text-slate-900">CloudBase Systems → New Lead [AUTO]</h4>
+                                    <span className="text-[9px] text-slate-400 font-medium">1h ago</span>
+                                  </div>
+                                  <p className="text-[11.5px] text-slate-500 leading-relaxed font-sans">
+                                    Inbound WhatsApp from +91 98334-12942: 'Looking for liability insurance.' Lead auto-created.
+                                  </p>
 
-                              <div className="flex gap-2 mt-2.5">
-                                <button 
-                                  onClick={handleConfirmCloudBase}
-                                  className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-md"
-                                >
-                                  ✓ Correct
-                                </button>
+                                  <div className="flex gap-2 mt-2.5">
+                                    <button 
+                                      onClick={handleConfirmCloudBase}
+                                      className="px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white text-[10px] font-bold rounded-md cursor-pointer"
+                                    >
+                                      ✓ Correct
+                                    </button>
 
-                                <div className="relative">
-                                  <button 
-                                    onClick={() => setShowStageDropdownId(showStageDropdownId === 55 ? null : 55)}
-                                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-semibold rounded-md flex items-center gap-1"
-                                  >
-                                    Edit
-                                    <ChevronDown className="w-3 h-3 text-slate-400" />
-                                  </button>
+                                    <div className="relative">
+                                      <button 
+                                        onClick={() => setShowStageDropdownId(showStageDropdownId === 55 ? null : 55)}
+                                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-semibold rounded-md flex items-center gap-1 cursor-pointer"
+                                      >
+                                        Edit
+                                        <ChevronDown className="w-3 h-3 text-slate-400" />
+                                      </button>
 
-                                  {showStageDropdownId === 55 && (
-                                    <div className="absolute left-0 bottom-full mb-1 z-20 bg-white border border-slate-200 rounded-lg shadow-xl p-1.5 w-36 text-xs text-slate-700">
-                                      <p className="text-[9px] font-bold text-slate-400 p-1 uppercase tracking-wider">Correct Stage</p>
-                                      {(['New Lead', 'Discovery', 'Quote Shared', 'Negotiation', 'Closed'] as const).map((stg) => (
-                                        <button
-                                          key={stg}
-                                          onClick={() => handleStageChange(5, stg)}
-                                          className="w-full text-left p-1.5 rounded-md hover:bg-slate-100 transition-colors"
-                                        >
-                                          {stg}
-                                        </button>
-                                      ))}
+                                      {showStageDropdownId === 55 && (
+                                        <div className="absolute left-0 bottom-full mb-1 z-20 bg-white border border-slate-200 rounded-lg shadow-xl p-1.5 w-36 text-xs text-slate-700">
+                                          <p className="text-[9px] font-bold text-slate-400 p-1 uppercase tracking-wider">Correct Stage</p>
+                                          {(['New Lead', 'Discovery', 'Quote Shared', 'Negotiation', 'Closed'] as const).map((stg) => (
+                                            <button
+                                              key={stg}
+                                              onClick={() => handleStageChange(5, stg)}
+                                              className="w-full text-left p-1.5 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
+                                            >
+                                              {stg}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
+                                  </div>
                                 </div>
                               </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+
+                    {/* B. CONFIRMED TODAY */}
+                    <div>
+                      <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2 select-none">
+                        CONFIRMED TODAY
+                      </label>
+                      
+                      <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs divide-y divide-slate-100">
+                        {confirmedToday.map((act, index) => (
+                          <div key={index} className="p-3 flex items-start gap-3">
+                            <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-500 shrink-0 select-none">
+                              {act.icon}
+                            </div>
+                            <div>
+                              <h4 className="text-[12px] font-bold text-slate-800 leading-tight">{act.title}</h4>
+                              <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{act.desc}</p>
                             </div>
                           </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {/* B. CONFIRMED TODAY */}
-                <div>
-                  <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2 select-none">
-                    CONFIRMED TODAY
-                  </label>
-                  
-                  <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs divide-y divide-slate-100">
-                    {confirmedToday.map((act, index) => (
-                      <div key={index} className="p-3 flex items-start gap-3">
-                        <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center font-bold text-xs text-slate-500 shrink-0 select-none">
-                          {act.icon}
+                  {/* Right Column (1/3 width) */}
+                  <div className="space-y-6 text-left">
+                    {/* C. AUTO LOG STATS */}
+                    <div>
+                      <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2 select-none">
+                        AUTO-LOG STATS THIS WEEK
+                      </label>
+                      
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="bg-white p-4 rounded-xl border border-slate-200/80 text-center flex items-center gap-3">
+                          <span className="text-2xl">🤖</span>
+                          <div className="text-left">
+                            <span className="block text-lg font-bold text-[#0F2044]">14</span>
+                            <span className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Auto-logged Deals</span>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="text-[12px] font-bold text-slate-800 leading-tight">{act.title}</h4>
-                          <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">{act.desc}</p>
+                        <div className="bg-white p-4 rounded-xl border border-slate-200/80 text-center flex items-center gap-3">
+                          <span className="text-2xl">✏️</span>
+                          <div className="text-left">
+                            <span className="block text-lg font-bold text-[#0F2044]">2</span>
+                            <span className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Manually Corrected</span>
+                          </div>
+                        </div>
+                        <div className="bg-white p-4 rounded-xl border border-slate-200/80 text-center flex items-center gap-3">
+                          <span className="text-2xl">📈</span>
+                          <div className="text-left">
+                            <span className="block text-lg font-bold text-emerald-600">86%</span>
+                            <span className="block text-xs font-semibold text-slate-500 uppercase tracking-wider">CRM Auto-save Accuracy</span>
+                          </div>
                         </div>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </div>
 
-                {/* C. AUTO LOG STATS */}
-                <div>
-                  <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2 select-none">
-                    AUTO-LOG STATS THIS WEEK
-                  </label>
-                  
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-white p-2.5 rounded-lg border border-slate-200/80 text-center">
-                      <span className="block text-base">🤖</span>
-                      <span className="block text-xs font-bold text-[#0F2044] mt-0.5">14 Auto-logged</span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-lg border border-slate-200/80 text-center">
-                      <span className="block text-base">✏️</span>
-                      <span className="block text-xs font-bold text-[#0F2044] mt-0.5">2 Corrected</span>
-                    </div>
-                    <div className="bg-white p-2.5 rounded-lg border border-slate-200/80 text-center">
-                      <span className="block text-base">📈</span>
-                      <span className="block text-xs font-bold text-emerald-600 mt-0.5">86% Accuracy</span>
-                    </div>
-                  </div>
                 </div>
 
               </div>
@@ -1389,7 +1515,7 @@ export default function App() {
               animate={{ x: 0 }}
               exit={{ x: 390 }}
               transition={{ type: 'spring', damping: 28, stiffness: 350 }}
-              className="flex-1 flex flex-col bg-[#E5DDD5] absolute inset-0 z-45"
+              className="flex-1 flex flex-col bg-[#E5DDD5] absolute inset-0 md:relative md:max-w-3xl md:mx-auto md:my-6 md:rounded-xl md:border md:border-slate-300 md:shadow-lg md:h-[calc(100vh-120px)] overflow-hidden z-45"
             >
               {/* WhatsApp Green Top Header (#075E54) */}
               <div className="bg-[#075E54] text-white px-3 pt-3 pb-3 flex items-center justify-between shadow-md shrink-0 select-none">
@@ -1556,19 +1682,19 @@ export default function App() {
               exit={{ opacity: 0 }}
               className="flex-1 flex flex-col"
             >
-              <div className="bg-[#0F2044] text-white px-4 pt-3 pb-4 shadow-sm shrink-0 relative">
+              <div className="bg-[#0F2044] text-white px-4 md:px-8 pt-3 pb-4 shadow-sm shrink-0 relative text-left">
                 <div>
-                  <h1 className="text-[17px] font-semibold">Pipeline Analytics</h1>
-                  <p className="text-[11px] text-slate-300 font-medium mt-0.5">
+                  <h1 className="text-[17px] md:text-xl font-semibold">Pipeline Analytics</h1>
+                  <p className="text-[11px] md:text-xs text-slate-300 font-medium mt-0.5">
                     Week of Jun 2, 2025 · Corporate Overview
                   </p>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 no-scrollbar">
+              <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6 space-y-6 no-scrollbar">
                 
                 {/* 1. Team Performance Horizontal Scroll */}
-                <div>
+                <div className="text-left">
                   <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2 select-none">
                     TEAM PERFORMANCE (RM BENCHMARK)
                   </label>
@@ -1618,170 +1744,180 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 2. Pipeline by Stage custom Horizontal bar chart (no libraries strictly) */}
-                <div>
-                  <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2 select-none">
-                    PIPELINE BY STAGE
-                  </label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                   
-                  <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3">
-                    
-                    {/* New Lead */}
+                  {/* Left Column (2/3 width) */}
+                  <div className="md:col-span-2 space-y-6 text-left">
+                    {/* 2. Pipeline by Stage custom Horizontal bar chart (no libraries strictly) */}
                     <div>
-                      <div className="flex justify-between text-[11px] font-medium mb-1 select-none">
-                        <span className="text-slate-700 font-bold">New Lead</span>
-                        <span className="text-slate-500 text-[10px]">8 deals · ₹18L</span>
-                      </div>
-                      <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          whileInView={{ width: '40%' }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.6 }}
-                          className="bg-indigo-600 h-full rounded-full"
-                        />
-                      </div>
-                    </div>
+                      <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2 select-none">
+                        PIPELINE BY STAGE
+                      </label>
+                      
+                      <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs space-y-3">
+                        
+                        {/* New Lead */}
+                        <div>
+                          <div className="flex justify-between text-[11px] font-medium mb-1 select-none">
+                            <span className="text-slate-700 font-bold">New Lead</span>
+                            <span className="text-slate-500 text-[10px]">8 deals · ₹18L</span>
+                          </div>
+                          <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              whileInView={{ width: '40%' }}
+                              viewport={{ once: true }}
+                              transition={{ duration: 0.6 }}
+                              className="bg-indigo-600 h-full rounded-full"
+                            />
+                          </div>
+                        </div>
 
-                    {/* Discovery */}
-                    <div>
-                      <div className="flex justify-between text-[11px] font-medium mb-1 select-none">
-                        <span className="text-slate-700 font-bold">Discovery</span>
-                        <span className="text-slate-500 text-[10px]">6 deals · ₹14L</span>
-                      </div>
-                      <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          whileInView={{ width: '60%' }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.6 }}
-                          className="bg-teal-600 h-full rounded-full"
-                        />
-                      </div>
-                    </div>
+                        {/* Discovery */}
+                        <div>
+                          <div className="flex justify-between text-[11px] font-medium mb-1 select-none">
+                            <span className="text-slate-700 font-bold">Discovery</span>
+                            <span className="text-slate-500 text-[10px]">6 deals · ₹14L</span>
+                          </div>
+                          <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              whileInView={{ width: '60%' }}
+                              viewport={{ once: true }}
+                              transition={{ duration: 0.6 }}
+                              className="bg-teal-600 h-full rounded-full"
+                            />
+                          </div>
+                        </div>
 
-                    {/* Quote */}
-                    <div>
-                      <div className="flex justify-between text-[11px] font-medium mb-1 select-none">
-                        <span className="text-slate-700 font-bold">Quote Shared</span>
-                        <span className="text-slate-500 text-[10px]">5 deals · ₹22L</span>
-                      </div>
-                      <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          whileInView={{ width: '80%' }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.6 }}
-                          className="bg-amber-500 h-full rounded-full"
-                        />
-                      </div>
-                    </div>
+                        {/* Quote */}
+                        <div>
+                          <div className="flex justify-between text-[11px] font-medium mb-1 select-none">
+                            <span className="text-slate-700 font-bold">Quote Shared</span>
+                            <span className="text-slate-500 text-[10px]">5 deals · ₹22L</span>
+                          </div>
+                          <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              whileInView={{ width: '80%' }}
+                              viewport={{ once: true }}
+                              transition={{ duration: 0.6 }}
+                              className="bg-amber-500 h-full rounded-full"
+                            />
+                          </div>
+                        </div>
 
-                    {/* Negotiation */}
-                    <div>
-                      <div className="flex justify-between text-[11px] font-medium mb-1 select-none">
-                        <span className="text-slate-700 font-bold">Negotiation</span>
-                        <span className="text-slate-500 text-[10px]">3 deals · ₹28L</span>
-                      </div>
-                      <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          whileInView={{ width: '30%' }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.6 }}
-                          className="bg-purple-600 h-full rounded-full"
-                        />
-                      </div>
-                    </div>
+                        {/* Negotiation */}
+                        <div>
+                          <div className="flex justify-between text-[11px] font-medium mb-1 select-none">
+                            <span className="text-slate-700 font-bold">Negotiation</span>
+                            <span className="text-slate-500 text-[10px]">3 deals · ₹28L</span>
+                          </div>
+                          <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              whileInView={{ width: '30%' }}
+                              viewport={{ once: true }}
+                              transition={{ duration: 0.6 }}
+                              className="bg-purple-600 h-full rounded-full"
+                            />
+                          </div>
+                        </div>
 
-                    {/* Closed */}
-                    <div>
-                      <div className="flex justify-between text-[11px] font-medium mb-1 select-none">
-                        <span className="text-slate-700 font-bold">Closed</span>
-                        <span className="text-slate-500 text-[10px]">2 deals · ₹12L</span>
+                        {/* Closed */}
+                        <div>
+                          <div className="flex justify-between text-[11px] font-medium mb-1 select-none">
+                            <span className="text-slate-700 font-bold">Closed</span>
+                            <span className="text-slate-500 text-[10px]">2 deals · ₹12L</span>
+                          </div>
+                          <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              whileInView={{ width: '20%' }}
+                              viewport={{ once: true }}
+                              transition={{ duration: 0.6 }}
+                              className="bg-emerald-600 h-full rounded-full"
+                            />
+                          </div>
+                        </div>
+
                       </div>
-                      <div className="w-full bg-slate-150 h-2.5 rounded-full overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          whileInView={{ width: '20%' }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.6 }}
-                          className="bg-emerald-600 h-full rounded-full"
-                        />
-                      </div>
-                    </div>
-
-                  </div>
-                </div>
-
-                {/* 3. Deals At Risk (red-tinted warning card layout) */}
-                <div>
-                  <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2 select-none">
-                    DEALS AT RISK (IDLE ACTIONS)
-                  </label>
-                  
-                  <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 space-y-2.5">
-                    
-                    <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-red-150 shadow-xs">
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-800">TechPlex Infra</h4>
-                        <p className="text-[10px] text-slate-500">Quote Shared · Manu Facturing</p>
-                      </div>
-                      <span className="text-red-600 text-xs font-bold font-mono flex items-center gap-1 select-none">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        3d idle
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-red-150 shadow-xs">
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-800">GlobalTech Ltd</h4>
-                        <p className="text-[10px] text-slate-500">Discovery · SaaS Logistics</p>
-                      </div>
-                      <span className="text-red-600 text-xs font-bold font-mono flex items-center gap-1 select-none">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        6d idle
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-red-150 shadow-xs">
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-800">Alpha Exports</h4>
-                        <p className="text-[10px] text-slate-500">New Lead · Chemical Port</p>
-                      </div>
-                      <span className="text-red-600 text-xs font-bold font-mono flex items-center gap-1 select-none">
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        8d idle
-                      </span>
-                    </div>
-
-                  </div>
-                </div>
-
-                {/* 4. Nudge Effectiveness */}
-                <div>
-                  <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2 select-none">
-                    NUDGE EFFECTIVENESS OVERVIEW
-                  </label>
-                  
-                  <div className="grid grid-cols-2 gap-3.5 mb-2">
-                    <div className="bg-white p-3.5 rounded-xl border border-slate-205/80 text-center shadow-xs">
-                      <span className="block text-[10px] font-semibold text-slate-400 uppercase">Nudges Sent</span>
-                      <span className="block text-xl font-bold text-[#0F2044] mt-1">24</span>
-                    </div>
-                    <div className="bg-white p-3.5 rounded-xl border border-slate-205/80 text-center shadow-xs">
-                      <span className="block text-[10px] font-semibold text-slate-400 uppercase">Acted On</span>
-                      <span className="block text-xl font-bold text-emerald-600 mt-1">19 (79%)</span>
-                    </div>
-                    <div className="bg-white p-3.5 rounded-xl border border-slate-205/80 text-center shadow-xs">
-                      <span className="block text-[10px] font-semibold text-slate-400 uppercase">Avg Response</span>
-                      <span className="block text-xl font-bold text-[#0F2044] mt-1">1.4h</span>
-                    </div>
-                    <div className="bg-white p-3.5 rounded-xl border border-slate-205/80 text-center shadow-xs">
-                      <span className="block text-[10px] font-semibold text-slate-400 uppercase">Unblocked Deals</span>
-                      <span className="block text-xl font-bold text-teal-600 mt-1">8</span>
                     </div>
                   </div>
+
+                  {/* Right Column (1/3 width) */}
+                  <div className="space-y-6 text-left">
+                    {/* 3. Deals At Risk (red-tinted warning card layout) */}
+                    <div>
+                      <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2 select-none">
+                        DEALS AT RISK (IDLE ACTIONS)
+                      </label>
+                      
+                      <div className="bg-red-50 border border-red-200 rounded-xl p-3.5 space-y-2.5">
+                        
+                        <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-red-150 shadow-xs">
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-800">TechPlex Infra</h4>
+                            <p className="text-[10px] text-slate-500">Quote Shared · Manu Facturing</p>
+                          </div>
+                          <span className="text-red-600 text-xs font-bold font-mono flex items-center gap-1 select-none">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            3d idle
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-red-150 shadow-xs">
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-800">GlobalTech Ltd</h4>
+                            <p className="text-[10px] text-slate-500">Discovery · SaaS Logistics</p>
+                          </div>
+                          <span className="text-red-600 text-xs font-bold font-mono flex items-center gap-1 select-none">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            6d idle
+                          </span>
+                        </div>
+
+                        <div className="flex justify-between items-center bg-white p-2.5 rounded-lg border border-red-150 shadow-xs">
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-800">Alpha Exports</h4>
+                            <p className="text-[10px] text-slate-500">New Lead · Chemical Port</p>
+                          </div>
+                          <span className="text-red-600 text-xs font-bold font-mono flex items-center gap-1 select-none">
+                            <AlertTriangle className="w-3.5 h-3.5" />
+                            8d idle
+                          </span>
+                        </div>
+
+                      </div>
+                    </div>
+
+                    {/* 4. Nudge Effectiveness */}
+                    <div>
+                      <label className="block text-[10px] font-bold font-mono text-slate-500 tracking-widest uppercase mb-2 select-none">
+                        NUDGE EFFECTIVENESS OVERVIEW
+                      </label>
+                      
+                      <div className="grid grid-cols-2 gap-3.5 mb-2">
+                        <div className="bg-white p-3.5 rounded-xl border border-slate-205/80 text-center shadow-xs">
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase">Nudges Sent</span>
+                          <span className="block text-xl font-bold text-[#0F2044] mt-1">24</span>
+                        </div>
+                        <div className="bg-white p-3.5 rounded-xl border border-slate-205/80 text-center shadow-xs">
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase">Acted On</span>
+                          <span className="block text-xl font-bold text-emerald-600 mt-1">19 (79%)</span>
+                        </div>
+                        <div className="bg-white p-3.5 rounded-xl border border-slate-205/80 text-center shadow-xs">
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase">Avg Response</span>
+                          <span className="block text-xl font-bold text-[#0F2044] mt-1">1.4h</span>
+                        </div>
+                        <div className="bg-white p-3.5 rounded-xl border border-slate-205/80 text-center shadow-xs">
+                          <span className="block text-[10px] font-semibold text-slate-400 uppercase">Unblocked Deals</span>
+                          <span className="block text-xl font-bold text-teal-600 mt-1">8</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                 </div>
 
               </div>
@@ -1793,17 +1929,17 @@ export default function App() {
         {/* ────────────────────────────────────────────────────────────────────── */}
         {/* TAB BAR SYSTEM (FITTS LAW: height >= 56px) */}
         {/* ────────────────────────────────────────────────────────────────────── */}
-        <div className="h-16 shrink-0 bg-white border-t border-slate-200/95 flex justify-around items-center px-4 relative z-40 select-none">
+        <div className="h-16 shrink-0 bg-white border-t border-slate-200/95 flex md:hidden justify-around items-center px-4 relative z-40 select-none">
           <button 
             onClick={() => {
               setCurrentTab('Home');
               setCurrentScreen('Home');
             }}
-            className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all ${
+            className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all cursor-pointer ${
               currentTab === 'Home' && currentScreen === 'Home' ? 'text-[#1A56A4]' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <HomeIcon className="w-5 h-5 shadow-xs" replace="" />
+            <HomeIcon className="w-5 h-5 shadow-xs" />
             <span className="text-[10px] font-extrabold mt-1">Home</span>
             {currentTab === 'Home' && currentScreen === 'Home' && (
               <motion.div layoutId="activeTabIndicator" className="absolute bottom-0.5 w-6 h-[2px] bg-blue-600 rounded-full" />
@@ -1815,11 +1951,11 @@ export default function App() {
               setCurrentTab('Pipeline');
               setCurrentScreen('Home');
             }}
-            className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all ${
+            className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all cursor-pointer ${
               currentTab === 'Pipeline' && currentScreen === 'Home' ? 'text-[#1A56A4]' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <Layers className="w-5 h-5 shadow-xs" replace="" />
+            <Layers className="w-5 h-5 shadow-xs" />
             <span className="text-[10px] font-extrabold mt-1">Pipeline</span>
             {currentTab === 'Pipeline' && currentScreen === 'Home' && (
               <motion.div layoutId="activeTabIndicator" className="absolute bottom-0.5 w-6 h-[2px] bg-blue-600 rounded-full" />
@@ -1831,12 +1967,12 @@ export default function App() {
               setCurrentTab('Activity');
               setCurrentScreen('Home');
             }}
-            className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all ${
+            className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all cursor-pointer ${
               currentTab === 'Activity' && currentScreen === 'Home' ? 'text-[#1A56A4]' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
             <div className="relative">
-              <ActivityIcon className="w-5 h-5 shadow-xs" replace="" />
+              <ActivityIcon className="w-5 h-5 shadow-xs" />
               {(vertexAutoConfirmActive || cloudBaseConfirmActive) && (
                 <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full border border-white animate-pulse" />
               )}
@@ -1852,11 +1988,11 @@ export default function App() {
               setCurrentTab('Reports');
               setCurrentScreen('Home');
             }}
-            className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all ${
+            className={`flex flex-col items-center justify-center flex-1 h-full relative transition-all cursor-pointer ${
               currentTab === 'Reports' && currentScreen === 'Home' ? 'text-[#1A56A4]' : 'text-slate-400 hover:text-slate-600'
             }`}
           >
-            <BarChart3 className="w-5 h-5 shadow-xs" replace="" />
+            <BarChart3 className="w-5 h-5 shadow-xs" />
             <span className="text-[10px] font-extrabold mt-1">Reports</span>
             {currentTab === 'Reports' && currentScreen === 'Home' && (
               <motion.div layoutId="activeTabIndicator" className="absolute bottom-0.5 w-6 h-[2px] bg-blue-600 rounded-full" />
@@ -1865,7 +2001,7 @@ export default function App() {
         </div>
 
         {/* Screen Bottom bar stroke simulating mobile */}
-        <div className="bg-white pb-2 flex justify-center w-full shrink-0">
+        <div className="hidden bg-white pb-2 justify-center w-full shrink-0">
           <div className="w-32 h-[4px] bg-slate-350 rounded-full" />
         </div>
 
